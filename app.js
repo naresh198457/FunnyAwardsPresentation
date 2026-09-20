@@ -5,6 +5,15 @@ const uid = () => Math.random().toString(36).slice(2, 9);
 const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150"><rect width="200" height="150" fill="#e5e5ea"/><circle cx="100" cy="62" r="24" fill="#f3f3f6"/><path d="M52 150c0-30 21-46 48-46s48 16 48 46z" fill="#f3f3f6"/></svg>');
 const MAX_CANDS = 6;
+// CSS object-position that puts the chosen face point (fx,fy in 0..1) at the centre of a 4:3 crop
+function posOf(x) {
+  const ar = x.ar || 4 / 3, fx = x.fx ?? 0.5, fy = x.fy ?? 0.35;
+  const at = (f, full, box) => full <= box + 0.001 ? 50 : Math.min(100, Math.max(0, (f * full - box / 2) / (full - box) * 100));
+  const W = 400, boxH = W * 3 / 4;                       // compare at a fixed box width
+  const H = W / ar, Wd = boxH * ar;                      // image size when scaled to cover
+  return H > boxH ? `50% ${at(fy, H, boxH).toFixed(1)}%` : `${at(fx, Wd, W).toFixed(1)}% 50%`;
+}
+const imgTag = x => `<img src="${x.img || PLACEHOLDER}" style="object-position:${x.img ? posOf(x) : '50% 50%'}">`;
 
 /* ---------------- data ---------------- */
 const newCand = (name = '', caption = '') => ({ id: uid(), name, caption, img: '' });
@@ -130,14 +139,14 @@ function slideHTML(s, demo) {
   if (s.t === 'vote') {
     const c = s.c;
     return head + `<h2>Category: ${esc(c.title)}${closed[c.id] && !demo ? '<span class="closed-tag">Voting closed</span>' : ''}</h2>
-      <div class="cards">${c.candidates.map(x => `<div class="card"><img src="${x.img || PLACEHOLDER}"><div class="nm">${esc(x.name)}</div><div class="cp">${esc(x.caption)}</div></div>`).join('')}
+      <div class="cards">${c.candidates.map(x => `<div class="card">${imgTag(x)}<div class="nm">${esc(x.name)}</div><div class="cp">${esc(x.caption)}</div></div>`).join('')}
       <div class="card qr"><div class="qrbox">${qrSVG(voteURL())}</div><b>SCAN TO VOTE</b></div></div>
       <p class="ins"><b>Instructions:</b><br>${esc(deck.instructions)}</p>`;
   }
   if (s.t === 'results') {
     const c = s.c;
     return head + `<h2>Category: ${esc(c.title)} – Live results</h2>
-      <div class="res">${c.candidates.map(x => `<div class="rrow" data-id="${x.id}"><img src="${x.img || PLACEHOLDER}"><div class="rn"><b>${esc(x.name)}</b><i>${esc(x.caption)}</i></div><div class="bar"><span></span></div><div class="ct"></div></div>`).join('')}</div>
+      <div class="res">${c.candidates.map(x => `<div class="rrow" data-id="${x.id}">${imgTag(x)}<div class="rn"><b>${esc(x.name)}</b><i>${esc(x.caption)}</i></div><div class="bar"><span></span></div><div class="ct"></div></div>`).join('')}</div>
       <div class="foot"><span class="total"></span>${!demo && closed[c.id] ? '<span>🔒 Voting closed</span>' : `<span class="mini">Still time to vote <span class="qrbox">${qrSVG(voteURL())}</span></span>`}</div>`;
   }
   const rows = deck.categories.map(c => {
@@ -216,7 +225,9 @@ function renderForm() {
     <label class="f">Category title</label><input type="text" data-k="ctitle" value="${esc(c.title)}" placeholder="e.g. Best Excuse for Missing a Match">
     <label class="f">People (up to ${MAX_CANDS}) – click a photo to change it</label>
     <div class="cands">${c.candidates.map((x, j) => `<div class="cand" data-j="${j}">
-      <label class="pic"><img src="${x.img || PLACEHOLDER}"><span>${x.img ? 'Change photo' : 'Add photo'}</span><input type="file" accept="image/*" hidden data-k="img"></label>
+      <div class="pic ${x.img ? 'has' : ''}" data-act="focus">${x.img ? `<img src="${x.img}" draggable="false"><i class="mk" style="left:${(x.fx ?? 0.5) * 100}%;top:${(x.fy ?? 0.35) * 100}%"></i>` : `<img src="${PLACEHOLDER}">`}</div>
+      ${x.img ? '<div class="muted">👆 Click the face to centre it</div>' : ''}
+      <label class="btn">${x.img ? 'Change photo' : 'Add photo'}<input type="file" accept="image/*" hidden data-k="img"></label>
       <input type="text" data-k="name" placeholder="Name" value="${esc(x.name)}">
       <input type="text" data-k="caption" placeholder='Funny comment' value="${esc(x.caption)}">
       <button class="btn danger" data-act="rmc" ${c.candidates.length <= 2 ? 'disabled' : ''}>Remove</button></div>`).join('')}</div>
@@ -230,7 +241,7 @@ function renderPreview() {
   mountStage($('#pv2'), { t: 'results', c }, true);
 }
 
-/* downscale + crop photos to 4:3 so many fit in browser storage */
+/* shrink photos (keeping the whole picture) so many fit in browser storage; guess the face position */
 function processImage(file) {
   return new Promise((res, rej) => {
     const fr = new FileReader();
@@ -238,11 +249,21 @@ function processImage(file) {
     fr.onload = () => {
       const im = new Image();
       im.onerror = rej;
-      im.onload = () => {
-        const W = 480, H = 360, cv = document.createElement('canvas'); cv.width = W; cv.height = H;
-        const k = Math.max(W / im.width, H / im.height), w = im.width * k, h = im.height * k;
-        cv.getContext('2d').drawImage(im, (W - w) / 2, (H - h) / 2, w, h);
-        res(cv.toDataURL('image/jpeg', 0.8));
+      im.onload = async () => {
+        const k = Math.min(1, 560 / Math.max(im.width, im.height)), cv = document.createElement('canvas');
+        cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k);
+        cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+        const out = { img: cv.toDataURL('image/jpeg', 0.8), ar: cv.width / cv.height, fx: 0.5, fy: 0.35 };
+        try {
+          if ('FaceDetector' in window) {
+            const faces = await new FaceDetector({ fastMode: true }).detect(cv);
+            if (faces.length) {
+              const f = faces.sort((a, b) => b.boundingBox.width - a.boundingBox.width)[0].boundingBox;
+              out.fx = (f.x + f.width / 2) / cv.width; out.fy = (f.y + f.height / 2) / cv.height;
+            }
+          }
+        } catch { }
+        res(out);
       };
       im.src = fr.result;
     };
@@ -265,12 +286,19 @@ $('#form').addEventListener('input', e => {
 $('#form').addEventListener('change', async e => {
   if (e.target.dataset.k !== 'img' || !e.target.files[0]) return;
   const cand = selCat().candidates[+e.target.closest('.cand').dataset.j];
-  try { cand.img = await processImage(e.target.files[0]); save(); renderForm(); renderPreview(); }
+  try { Object.assign(cand, await processImage(e.target.files[0])); save(); renderForm(); renderPreview(); }
   catch { toast('Could not read that image.'); }
 });
 
 $('#form').addEventListener('click', e => {
   if (e.target.id === 'copyLink') { navigator.clipboard?.writeText($('#vlink').value); toast('Link copied'); return; }
+  const pic = e.target.closest('.pic.has');
+  if (pic) {
+    const r = pic.querySelector('img').getBoundingClientRect(), cand = selCat().candidates[+pic.closest('.cand').dataset.j];
+    cand.fx = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); cand.fy = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+    const mk = pic.querySelector('.mk'); mk.style.left = cand.fx * 100 + '%'; mk.style.top = cand.fy * 100 + '%';
+    save(); renderPreview(); return;
+  }
   const act = e.target.dataset.act; if (!act) return;
   const c = selCat(), a = deck.categories, i = a.indexOf(c);
   if (act === 'addc' && c.candidates.length < MAX_CANDS) c.candidates.push(newCand('', ''));
