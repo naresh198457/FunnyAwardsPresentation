@@ -51,26 +51,35 @@ app.addEventListener('click', e => {
   render('Sending…');
 });
 
+let stage = '';
+function step(t) { stage = t; dot.textContent = '● ' + t; }
+let watchdog;
 function connect() {
   if (!host) return msg('This voting link is incomplete. Please scan the QR code again.');
-  dot.textContent = '';
+  if (typeof Peer === 'undefined') return msg('Could not load the voting library. Check your phone has internet, then reload.');
+  step('1/3 contacting vote service…');
   peer = new Peer();
+  clearTimeout(watchdog);
+  watchdog = setTimeout(() => {
+    if (!conn || !conn.open) { step('stuck at: ' + stage); msg('Cannot reach the presenter yet.<br><small>Make sure the presenter page is open and says “Live voting ready”. Trying again…</small>'); retry(); }
+  }, 12000);
   peer.on('open', () => {
+    step('2/3 finding presenter…');
     conn = peer.connect(host, { reliable: true });
-    conn.on('open', () => { dot.textContent = '● connected'; });
+    conn.on('open', () => { step('3/3 connected – waiting for slide'); });
     conn.on('data', m => {
-      if (m.type === 'state') { state = m; render(); }
+      if (m.type === 'state') { state = m; step('connected'); render(); }
       else if (m.type === 'ack') { localStorage.setItem('fa_v_' + m.catId, m.candId); render(); }
     });
     conn.on('close', retry);
     conn.on('error', retry);
   });
-  peer.on('error', e => { dot.textContent = '● ' + (e.type === 'peer-unavailable' ? 'presenter not online yet' : 'reconnecting'); retry(); });
+  peer.on('error', e => { step('error: ' + e.type + (e.type === 'peer-unavailable' ? ' (presenter page not open / different session)' : '')); retry(); });
 }
 let retrying = false;
 function retry() {
-  if (retrying) return; retrying = true; state = null; msg('Waiting for the presenter…<br><small>Retrying automatically.</small>');
-  setTimeout(() => { retrying = false; try { peer && peer.destroy(); } catch { } connect(); }, 3000);
+  if (retrying) return; retrying = true; state = null; if (!document.querySelector('.msg small')) msg('Waiting for the presenter…<br><small>Retrying automatically.</small>');
+  setTimeout(() => { retrying = false; clearTimeout(watchdog); try { peer && peer.destroy(); } catch { } connect(); }, 3000);
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && (!conn || !conn.open)) { retrying = false; try { peer && peer.destroy(); } catch { } connect(); } });
 connect();
