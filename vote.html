@@ -22,7 +22,6 @@ h1{font-size:22px;margin:0 0 4px}h2{font-size:18px;color:#2d4a2f;margin:0 0 18px
 <div id="app"><div class="msg">Connecting…</div></div>
 <div class="dot" id="dot"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 const host = new URLSearchParams(location.search).get('h');
 const app = document.getElementById('app'), dot = document.getElementById('dot');
@@ -31,7 +30,7 @@ let voter = localStorage.getItem('fa_voter');
 if (!voter) { voter = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('fa_voter', voter); }
 const mine = c => localStorage.getItem('fa_v_' + c);
 
-let conn, peer, state = null;
+let state = null;
 
 function msg(t) { app.innerHTML = `<div class="msg">${t}</div>`; }
 
@@ -45,43 +44,32 @@ function render(note) {
     `<div class="note">${!state.open ? '🔒 Voting is closed' : note || (my ? '✓ Vote received – tap another to change it' : 'Tap your favourite to vote')}</div>`;
 }
 
-app.addEventListener('click', e => {
-  const b = e.target.closest('.opt'); if (!b || !state || !state.open || !conn || !conn.open) return;
-  conn.send({ type: 'vote', catId: state.catId, candId: b.dataset.id, voter });
+app.addEventListener('click', async e => {
+  const b = e.target.closest('.opt'); if (!b || !state || !state.open) return;
+  const catId = state.catId, candId = b.dataset.id;
   render('Sending…');
+  try {
+    const r = await fetch(RELAY + host + '-v', { method: 'POST', body: JSON.stringify({ type: 'vote', catId, candId, voter }) });
+    if (!r.ok) throw 0;
+    localStorage.setItem('fa_v_' + catId, candId);
+    if (state && state.catId === catId) render();
+  } catch { render('⚠ Vote not sent – check your internet and tap again'); }
 });
 
-let stage = '';
-function step(t) { stage = t; dot.textContent = '● ' + t; }
-let watchdog;
+const RELAY = 'https://ntfy.sh/';
+let es;
 function connect() {
   if (!host) return msg('This voting link is incomplete. Please scan the QR code again.');
-  if (typeof Peer === 'undefined') return msg('Could not load the voting library. Check your phone has internet, then reload.');
-  step('1/3 contacting vote service…');
-  peer = new Peer();
-  clearTimeout(watchdog);
-  watchdog = setTimeout(() => {
-    if (!conn || !conn.open) { step('stuck at: ' + stage); msg('Cannot reach the presenter yet.<br><small>Make sure the presenter page is open and says “Live voting ready”. Trying again…</small>'); retry(); }
-  }, 12000);
-  peer.on('open', () => {
-    step('2/3 finding presenter…');
-    conn = peer.connect(host, { reliable: true });
-    conn.on('open', () => { step('3/3 connected – waiting for slide'); });
-    conn.on('data', m => {
-      if (m.type === 'state') { state = m; step('connected'); render(); }
-      else if (m.type === 'ack') { localStorage.setItem('fa_v_' + m.catId, m.candId); render(); }
-    });
-    conn.on('close', retry);
-    conn.on('error', retry);
-  });
-  peer.on('error', e => { step('error: ' + e.type + (e.type === 'peer-unavailable' ? ' (presenter page not open / different session)' : '')); retry(); });
+  dot.textContent = '● connecting…';
+  if (es) es.close();
+  es = new EventSource(RELAY + host + '-s/sse?since=latest');
+  es.onopen = () => { dot.textContent = '● connected'; if (!state) msg('⏳ Waiting for the presenter…<br><small>This page updates by itself.</small>'); };
+  es.onerror = () => { dot.textContent = '● reconnecting…'; };
+  es.onmessage = ev => {
+    try { const d = JSON.parse(ev.data); if (d.event === 'message') { state = JSON.parse(d.message); render(); } } catch { }
+  };
 }
-let retrying = false;
-function retry() {
-  if (retrying) return; retrying = true; state = null; if (!document.querySelector('.msg small')) msg('Waiting for the presenter…<br><small>Retrying automatically.</small>');
-  setTimeout(() => { retrying = false; clearTimeout(watchdog); try { peer && peer.destroy(); } catch { } connect(); }, 3000);
-}
-document.addEventListener('visibilitychange', () => { if (!document.hidden && (!conn || !conn.open)) { retrying = false; try { peer && peer.destroy(); } catch { } connect(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && es && es.readyState === 2) connect(); });
 connect();
 </script>
 </body>

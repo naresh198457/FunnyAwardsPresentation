@@ -33,8 +33,8 @@ function toast(msg) {
   clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 3500);
 }
 
-/* ---------------- live-vote host (PeerJS) ---------------- */
-let peer, conns = new Set(), presenting = false, idx = 0;
+/* ---------------- live-vote host (ntfy.sh relay) ---------------- */
+let presenting = false, idx = 0;
 const hostId = () => {
   let id = localStorage.getItem('fa_host');
   if (!id) { id = 'poplars-fa-' + uid() + uid(); localStorage.setItem('fa_host', id); }
@@ -54,22 +54,18 @@ function setStatus(kind, text) {
   s.textContent = '● ' + text;
 }
 
+const RELAY = 'https://ntfy.sh/';
+let es, votesSeen = 0, sendT;
 function startHost() {
-  if (typeof Peer === 'undefined') { setStatus('err', 'Voting offline (no internet)'); return; }
   setStatus('', 'Connecting…');
-  peer = new Peer(hostId());
-  peer.on('open', () => setStatus('ok', 'Live voting ready'));
-  peer.on('connection', c => {
-    c.on('open', () => { conns.add(c); c.send(stateMsg()); updCount(); });
-    c.on('data', m => onMsg(c, m));
-    c.on('close', () => { conns.delete(c); updCount(); });
-    c.on('error', () => { conns.delete(c); updCount(); });
-  });
-  peer.on('disconnected', () => { setStatus('', 'Reconnecting…'); try { peer.reconnect(); } catch { } });
-  peer.on('error', e => {
-    if (e.type === 'unavailable-id') { setStatus('', 'Waiting for old session to expire…'); setTimeout(() => { peer.destroy(); startHost(); }, 4000); }
-    else setStatus('err', 'Voting problem: ' + e.type);
-  });
+  if (es) es.close();
+  // votes arrive on topic "<id>-v"; replay the last 10 min so a page refresh loses nothing
+  es = new EventSource(RELAY + hostId() + '-v/sse?since=10m');
+  es.onopen = () => { setStatus('ok', 'Live voting ready'); broadcast(); };
+  es.onerror = () => setStatus('err', 'Voting offline – check internet (retrying)');
+  es.onmessage = ev => {
+    try { const d = JSON.parse(ev.data); if (d.event === 'message') onMsg(JSON.parse(d.message)); } catch { }
+  };
 }
 
 const cur = () => screens()[idx];
@@ -78,21 +74,31 @@ function stateMsg() {
   const c = s && s.c;
   if (!c) return { type: 'state', event: deck.title, catId: null, ended: !!(s && s.t === 'final') };
   return {
-    type: 'state', event: deck.title, catId: c.id, title: c.title, open: !closed[c.id],
-    candidates: c.candidates.map(x => ({ id: x.id, name: x.name, caption: x.caption }))
+    type: 'state', event: deck.title.slice(0, 80), catId: c.id, title: c.title.slice(0, 120), open: !closed[c.id],
+    candidates: c.candidates.map(x => ({ id: x.id, name: x.name.slice(0, 60), caption: x.caption.slice(0, 100) }))
   };
 }
-const broadcast = () => { const m = stateMsg(); conns.forEach(c => c.open && c.send(m)); };
-function updCount() { $('#cVoters').textContent = '📱 ' + conns.size + ' phone' + (conns.size === 1 ? '' : 's') + ' connected'; }
+// publish the current slide to phones (debounced so quick clicks send one message)
+function broadcast() {
+  clearTimeout(sendT);
+  sendT = setTimeout(() => {
+    fetch(RELAY + hostId() + '-s', { method: 'POST', body: JSON.stringify(stateMsg()) })
+      .then(r => { if (!r.ok) toast('Could not update phones (' + r.status + '). Slow down slide changes for a moment.'); })
+      .catch(() => toast('Could not reach the voting relay – check internet.'));
+  }, 300);
+}
+function updCount() {
+  const s = presenting && cur(), n = s && s.c ? Object.keys(votes[s.c.id] || {}).length : 0;
+  $('#cVoters').textContent = '🗳 ' + n + ' vote' + (n === 1 ? '' : 's') + ' this category';
+}
 
-function onMsg(conn, m) {
+function onMsg(m) {
   if (!m || m.type !== 'vote' || !presenting) return;
   const s = cur(), c = s && s.c;
-  if (!c || c.id !== m.catId || closed[c.id]) { conn.send(stateMsg()); return; }
+  if (!c || c.id !== m.catId || closed[c.id]) return;
   if (!c.candidates.some(x => x.id === m.candId) || typeof m.voter !== 'string') return;
   (votes[c.id] ||= {})[m.voter.slice(0, 40)] = m.candId;
-  saveVotes();
-  conn.send({ type: 'ack', catId: c.id, candId: m.candId });
+  saveVotes(); updCount();
   if (s.t === 'results') paintResults($('#pbox'), c, false);
 }
 

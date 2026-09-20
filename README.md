@@ -28,7 +28,7 @@ Your decks are stored in the browser you use (and in the downloadable file), not
 
 ## How live voting works
 
-The presenter's browser acts as the vote counter. Phones connect to it directly (WebRTC via the free PeerJS broker) when they open the QR link, so nothing needs to be set up. Requirements: internet on the presenter laptop and the phones (mobile data is fine), and the presenter tab kept open. One vote per phone per category; guests can change their vote until voting is closed.
+Votes travel over ordinary HTTPS through the free public relay ntfy.sh, so they work on mobile data and any Wi-Fi, with nothing to set up. The presenter's browser collects and counts them, so keep the presenter tab open and online. One vote per phone per category; guests can change their vote until voting is closed. The relay allows a few hundred messages a day per device, far more than a club event needs.
 
 ## Files
 
