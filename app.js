@@ -122,7 +122,6 @@ function qrSVG(text) {
 function screens() {
   const s = [];
   deck.categories.forEach(c => { s.push({ t: 'vote', c }); s.push({ t: 'results', c }); });
-  s.push({ t: 'final' });
   return s;
 }
 
@@ -138,14 +137,14 @@ function slideHTML(s, demo) {
   const head = `<h1>${esc(deck.title)}</h1>`;
   if (s.t === 'vote') {
     const c = s.c;
-    return head + `<h2>Category: ${esc(c.title)}${closed[c.id] && !demo ? '<span class="closed-tag">Voting closed</span>' : ''}</h2>
+    return head + `<h2>${esc(c.title)}${closed[c.id] && !demo ? '<span class="closed-tag">Voting closed</span>' : ''}</h2>
       <div class="cards">${c.candidates.map(x => `<div class="card">${imgTag(x)}<div class="nm">${esc(x.name)}</div><div class="cp">${esc(x.caption)}</div></div>`).join('')}
       <div class="card qr"><div class="qrbox">${qrSVG(voteURL())}</div><b>SCAN TO VOTE</b></div></div>
       <p class="ins"><b>Instructions:</b><br>${esc(deck.instructions)}</p>`;
   }
   if (s.t === 'results') {
     const c = s.c;
-    return head + `<h2>Category: ${esc(c.title)} – Live results</h2>
+    return head + `<h2>${esc(c.title)} – Live results</h2>
       <div class="res">${c.candidates.map(x => `<div class="rrow" data-id="${x.id}">${imgTag(x)}<div class="rn"><b>${esc(x.name)}</b><i>${esc(x.caption)}</i></div><div class="bar"><span></span></div><div class="ct"></div></div>`).join('')}</div>
       <div class="foot"><span class="total"></span>${!demo && closed[c.id] ? '<span>🔒 Voting closed</span>' : `<span class="mini">Still time to vote <span class="qrbox">${qrSVG(voteURL())}</span></span>`}</div>`;
   }
@@ -207,7 +206,7 @@ function renderForm() {
         <li>Add a category on the left for each award, then add people, photos and funny comments.</li>
         <li>Click <b>▶ Start presentation</b>. Each category shows a <b>voting slide</b> with a QR code, then a <b>live results slide</b>.</li>
         <li>Guests scan the QR code with their phone camera and tap their pick. Bars move live on the results slide.</li>
-        <li>Press <b>Close voting</b> on the results slide to reveal the winner. The last slide lists all winners.</li></ol></div>
+        <li>Press <b>Close voting</b> on the results slide to reveal the winner.</li></ol></div>
       <label class="f">Published website address (your GitHub Pages link, e.g. https://yourname.github.io/funny-awards/)</label><input type="text" data-k="site" value="${esc(localStorage.getItem('fa_site') || '')}" placeholder="https://yourname.github.io/funny-awards/">
       ${canReachPhones() ? '' : '<div class="help warn"><b>Phones cannot open this voting link yet.</b> Publish the site on GitHub Pages (see README), then paste its address in the box above. The QR code will then work.</div>'}
       <div class="help"><b>Voting link</b> (try it on your phone before the event)

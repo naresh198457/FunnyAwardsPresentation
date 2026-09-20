@@ -59,7 +59,7 @@ button,input,textarea{font:inherit}
 .stage .card{flex:1;min-width:0;background:#fff;border-radius:14px;padding:18px;display:flex;flex-direction:column;align-items:center;text-align:center;height:330px}
 .stage .card img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;background:#e5e5ea}
 .stage .nm{margin-top:16px;font-weight:600;font-size:18px;color:var(--green)}
-.stage .cp{margin-top:auto;margin-bottom:22px;font-style:italic;font-size:22px;line-height:1.25}
+.stage .cp{margin-top:auto;margin-bottom:22px;font-style:italic;font-size:17px;line-height:1.25}
 .stage .card.qr{flex:1.15;justify-content:center;gap:18px}
 .stage .qrbox{width:190px;height:190px}
 .stage .qrbox svg{width:100%;height:100%;display:block}
@@ -71,7 +71,7 @@ button,input,textarea{font:inherit}
 .stage .res{display:flex;flex-direction:column;gap:12px}
 .stage .rrow{display:flex;align-items:center;gap:18px;background:#fff;border-radius:14px;padding:10px 20px 10px 10px}
 .stage .rrow img{width:96px;height:72px;object-fit:cover;border-radius:8px;background:#e5e5ea}
-.stage .rn{width:270px}.stage .rn b{display:block;font-size:22px;color:var(--green)}.stage .rn i{font-size:16px;color:#555}
+.stage .rn{width:270px}.stage .rn b{display:block;font-size:22px;color:var(--green)}.stage .rn i{font-size:14px;color:#555}
 .stage .bar{flex:1;height:34px;background:#eef0ee;border-radius:99px;overflow:hidden}
 .stage .bar span{display:block;height:100%;width:0;background:#7ea67f;border-radius:99px;transition:width .7s ease}
 .stage .rrow.lead .bar span{background:var(--green)}

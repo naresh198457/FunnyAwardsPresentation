@@ -12,7 +12,6 @@ A no-code presentation tool for club events: build award categories (photos, nam
 6. **▶ Start presentation**. Controls: `→`/`Space`/`PageDown` next, `←` back, `C` close/reopen voting, `Esc`/Exit to leave. Move the mouse to show the buttons.
    - Voting slide: guests scan the QR code.
    - Next slide: live bars. Press **Close voting** to reveal the winner with a gold 🏆.
-   - Last slide: all winners.
 
 **Before the event:** open the voting link (Event settings → Voting link) on your own phone and vote to test it. Then **Reset votes**.
 **During the event:** keep the presenter tab open (votes are kept even if you refresh).
