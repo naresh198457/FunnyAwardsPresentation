@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cast your vote</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;background:#f3f4f6;color:#1a1a1a;padding:20px 16px 40px;max-width:520px;margin-inline:auto}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:18px;color:#2d4a2f;margin:0 0 18px}
+.msg{background:#fff;border-radius:14px;padding:28px 20px;text-align:center;font-size:18px;line-height:1.4}
+.opt{display:block;width:100%;text-align:left;background:#fff;border:2px solid transparent;border-radius:14px;padding:16px;margin-bottom:12px;font:inherit;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.opt b{display:block;font-size:18px;color:#2d4a2f}.opt i{color:#555}
+.opt.on{border-color:#2d4a2f;background:#e7efe7}
+.opt:disabled{opacity:.6}
+.note{text-align:center;margin-top:10px;color:#166534;font-weight:600;min-height:24px}
+.dot{font-size:12px;color:#888;text-align:center;margin-top:24px}
+</style>
+</head>
+<body>
+<h1 id="ev">Funny Awards</h1>
+<div id="app"><div class="msg">Connecting…</div></div>
+<div class="dot" id="dot"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+const host = new URLSearchParams(location.search).get('h');
+const app = document.getElementById('app'), dot = document.getElementById('dot');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let voter = localStorage.getItem('fa_voter');
+if (!voter) { voter = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem('fa_voter', voter); }
+const mine = c => localStorage.getItem('fa_v_' + c);
+
+let conn, peer, state = null;
+
+function msg(t) { app.innerHTML = `<div class="msg">${t}</div>`; }
+
+function render(note) {
+  if (!state) return msg('Connecting to the presenter…');
+  document.getElementById('ev').textContent = state.event || 'Funny Awards';
+  if (!state.catId) return msg(state.ended ? '🎉 Thanks for voting!<br>Winners are on the big screen.' : '⏳ Waiting for the next category…<br><small>This page updates by itself.</small>');
+  const my = mine(state.catId);
+  app.innerHTML = `<h2>${esc(state.title)}</h2>` +
+    state.candidates.map(c => `<button class="opt ${my === c.id ? 'on' : ''}" data-id="${c.id}" ${state.open ? '' : 'disabled'}><b>${esc(c.name)}</b><i>${esc(c.caption)}</i></button>`).join('') +
+    `<div class="note">${!state.open ? '🔒 Voting is closed' : note || (my ? '✓ Vote received – tap another to change it' : 'Tap your favourite to vote')}</div>`;
+}
+
+app.addEventListener('click', e => {
+  const b = e.target.closest('.opt'); if (!b || !state || !state.open || !conn || !conn.open) return;
+  conn.send({ type: 'vote', catId: state.catId, candId: b.dataset.id, voter });
+  render('Sending…');
+});
+
+function connect() {
+  if (!host) return msg('This voting link is incomplete. Please scan the QR code again.');
+  dot.textContent = '';
+  peer = new Peer();
+  peer.on('open', () => {
+    conn = peer.connect(host, { reliable: true });
+    conn.on('open', () => { dot.textContent = '● connected'; });
+    conn.on('data', m => {
+      if (m.type === 'state') { state = m; render(); }
+      else if (m.type === 'ack') { localStorage.setItem('fa_v_' + m.catId, m.candId); render(); }
+    });
+    conn.on('close', retry);
+    conn.on('error', retry);
+  });
+  peer.on('error', e => { dot.textContent = '● ' + (e.type === 'peer-unavailable' ? 'presenter not online yet' : 'reconnecting'); retry(); });
+}
+let retrying = false;
+function retry() {
+  if (retrying) return; retrying = true; state = null; msg('Waiting for the presenter…<br><small>Retrying automatically.</small>');
+  setTimeout(() => { retrying = false; try { peer && peer.destroy(); } catch { } connect(); }, 3000);
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && (!conn || !conn.open)) { retrying = false; try { peer && peer.destroy(); } catch { } connect(); } });
+connect();
+</script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Funny Awards Presenter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,600;0,800;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">🏆 Funny Awards</div>
+  <div id="status" class="status" title="Phones connect to this page to send votes. Keep this tab open while presenting.">● Starting…</div>
+  <div class="spacer"></div>
+  <button id="btnBackup" class="btn">💾 Save deck</button>
+  <label class="btn">📂 Open deck<input id="fileLoad" type="file" accept=".json" hidden></label>
+  <button id="btnReset" class="btn">↺ Reset votes</button>
+  <button id="btnPresent" class="btn primary">▶ Start presentation</button>
+</header>
+
+<main class="editor">
+  <nav class="side">
+    <button class="side-item" data-sel="settings">⚙ Event settings</button>
+    <div class="side-label">Award categories</div>
+    <div id="catList"></div>
+    <button id="btnAddCat" class="btn wide">＋ Add category</button>
+  </nav>
+
+  <section id="form" class="form"></section>
+
+  <aside class="preview">
+    <div class="side-label">Preview: voting slide</div>
+    <div id="pv1" class="pv"></div>
+    <div class="side-label">Preview: live results slide (sample numbers)</div>
+    <div id="pv2" class="pv"></div>
+  </aside>
+</main>
+
+<div id="present" hidden>
+  <div id="pbox" class="pbox"></div>
+  <div id="ctrl" class="ctrl">
+    <button id="cPrev" class="btn">◀ Back</button>
+    <span id="cInfo"></span>
+    <button id="cNext" class="btn primary">Next ▶</button>
+    <button id="cClose" class="btn">🔒 Close voting</button>
+    <span id="cVoters" class="muted"></span>
+    <button id="cExit" class="btn">✕ Exit</button>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
