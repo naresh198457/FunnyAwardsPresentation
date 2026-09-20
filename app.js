@@ -138,9 +138,9 @@ function slideHTML(s, demo) {
   if (s.t === 'vote') {
     const c = s.c;
     return head + `<h2>${esc(c.title)}${closed[c.id] && !demo ? '<span class="closed-tag">Voting closed</span>' : ''}</h2>
-      <div class="cards">${c.candidates.map(x => `<div class="card">${imgTag(x)}<div class="nm">${esc(x.name)}</div><div class="cp">${esc(x.caption)}</div></div>`).join('')}
-      <div class="card qr"><div class="qrbox">${qrSVG(voteURL())}</div><b>SCAN TO VOTE</b></div></div>
-      <p class="ins"><b>Instructions:</b><br>${esc(deck.instructions)}</p>`;
+      <div class="cards">${c.candidates.map(x => `<div class="card">${imgTag(x)}<div class="nm">${esc(x.name)}</div><div class="cp">${esc(x.caption)}</div></div>`).join('')}</div>
+      <div class="foot vfoot"><p class="ins"><b>Instructions:</b><br>${esc(deck.instructions)}</p>
+      <div class="qrcell"><div class="qrbox">${qrSVG(voteURL())}</div><b>SCAN TO VOTE</b></div></div>`;
   }
   if (s.t === 'results') {
     const c = s.c;
