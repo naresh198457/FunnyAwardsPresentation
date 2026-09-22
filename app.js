@@ -80,8 +80,8 @@ function startHost() {
 const cur = () => screens()[idx];
 function stateMsg() {
   const s = presenting && cur();
-  const c = s && s.c;
-  if (!c) return { type: 'state', event: deck.title, catId: null, ended: !!(s && s.t === 'final') };
+  const c = s && s.t !== 'reveal' && s.c;
+  if (!c) return { type: 'state', event: deck.title, catId: null, revealing: !!(s && s.t === 'reveal') };
   return {
     type: 'state', event: deck.title.slice(0, 80), catId: c.id, title: c.title.slice(0, 120), open: !closed[c.id],
     candidates: c.candidates.map(x => ({ id: x.id, name: x.name.slice(0, 60), caption: x.caption.slice(0, 100) }))
@@ -97,7 +97,7 @@ function broadcast() {
   }, 300);
 }
 function updCount() {
-  const s = presenting && cur(), n = s && s.c ? Object.keys(votes[s.c.id] || {}).length : 0;
+  const s = presenting && cur(), n = s && s.c && s.t !== 'reveal' ? Object.keys(votes[s.c.id] || {}).length : 0;
   $('#cVoters').textContent = '🗳 ' + n + ' vote' + (n === 1 ? '' : 's') + ' this category';
 }
 
@@ -121,7 +121,10 @@ function qrSVG(text) {
 
 function screens() {
   const s = [];
-  deck.categories.forEach(c => { s.push({ t: 'vote', c }); s.push({ t: 'results', c }); });
+  deck.categories.forEach(c => {
+    for (let n = 1; n < c.candidates.length; n++) s.push({ t: 'reveal', c, n });
+    s.push({ t: 'vote', c }); s.push({ t: 'results', c });
+  });
   return s;
 }
 
@@ -135,6 +138,14 @@ function tally(c, demo) {
 
 function slideHTML(s, demo) {
   const head = `<h1>${esc(deck.title)}</h1>`;
+  if (s.t === 'reveal') {
+    const c = s.c;
+    return head + `<h2>${esc(c.title)}</h2>
+      <div class="cards">${c.candidates.map((x, i) => i < s.n
+      ? `<div class="card">${imgTag(x)}<div class="nm">${esc(x.name)}</div><div class="cp">${esc(x.caption)}</div></div>`
+      : `<div class="card mystery"><div class="mybox">?</div><div class="nm">?</div></div>`).join('')}</div>
+      <p class="ins reveal-note">Nominee ${s.n} of ${c.candidates.length}…</p>`;
+  }
   if (s.t === 'vote') {
     const c = s.c;
     return head + `<h2>${esc(c.title)}${closed[c.id] && !demo ? '<span class="closed-tag">Voting closed</span>' : ''}</h2>
@@ -148,11 +159,6 @@ function slideHTML(s, demo) {
       <div class="res">${c.candidates.map(x => `<div class="rrow" data-id="${x.id}">${imgTag(x)}<div class="rn"><b>${esc(x.name)}</b><i>${esc(x.caption)}</i></div><div class="bar"><span></span></div><div class="ct"></div></div>`).join('')}</div>
       <div class="foot"><span class="total"></span>${!demo && closed[c.id] ? '<span>🔒 Voting closed</span>' : `<span class="mini">Still time to vote <span class="qrbox">${qrSVG(voteURL())}</span></span>`}</div>`;
   }
-  const rows = deck.categories.map(c => {
-    const t = tally(c, demo), w = t.max ? c.candidates.filter(x => t.counts[x.id] === t.max).map(x => x.name).join(' & ') : 'No votes yet';
-    return `<div class="wcard"><small>${esc(c.title)}</small>🏆 <b>${esc(w)}</b></div>`;
-  }).join('');
-  return head + `<h2>The winners</h2><div class="winners">${rows}</div>`;
 }
 
 function paintResults(root, c, demo) {
@@ -204,7 +210,7 @@ function renderForm() {
       <label class="f">Voting instructions (shown on the voting slide)</label><textarea data-k="instructions">${esc(deck.instructions)}</textarea>
       <div class="help"><b>How it works</b><ol>
         <li>Add a category on the left for each award, then add people, photos and funny comments.</li>
-        <li>Click <b>▶ Start presentation</b>. Each category shows a <b>voting slide</b> with a QR code, then a <b>live results slide</b>.</li>
+        <li>Click <b>▶ Start presentation</b>. Each category reveals its nominees <b>one by one</b>, then shows the <b>voting slide</b> with everyone and a QR code, then a <b>live results slide</b>.</li>
         <li>Guests scan the QR code with their phone camera and tap their pick. Bars move live on the results slide.</li>
         <li>Press <b>Close voting</b> on the results slide to reveal the winner.</li></ol></div>
       <label class="f">Published website address (your GitHub Pages link, e.g. https://yourname.github.io/funny-awards/)</label><input type="text" data-k="site" value="${esc(localStorage.getItem('fa_site') || '')}" placeholder="https://yourname.github.io/funny-awards/">
@@ -359,15 +365,15 @@ function exitPresent() {
 function show() {
   const list = screens(), s = list[idx];
   mountStage($('#pbox'), s, false);
-  $('#cInfo').textContent = `Slide ${idx + 1} of ${list.length} · ${s.t === 'vote' ? 'Voting' : s.t === 'results' ? 'Live results' : 'Winners'}`;
+  $('#cInfo').textContent = `Slide ${idx + 1} of ${list.length} · ${s.t === 'vote' ? 'Voting' : s.t === 'results' ? 'Live results' : `Revealing nominee ${s.n} of ${s.c.candidates.length}`}`;
   $('#cPrev').disabled = idx === 0; $('#cNext').disabled = idx === list.length - 1;
-  $('#cClose').hidden = !s.c;
+  $('#cClose').hidden = !s.c || s.t === 'reveal';
   if (s.c) $('#cClose').textContent = closed[s.c.id] ? '🔓 Re-open voting' : '🔒 Close voting';
   updCount(); broadcast();
 }
 function go(d) { const n = idx + d; if (n >= 0 && n < screens().length) { idx = n; show(); } }
 function toggleClose() {
-  const s = cur(); if (!s.c) return;
+  const s = cur(); if (!s.c || s.t === 'reveal') return;
   closed[s.c.id] = !closed[s.c.id]; if (!closed[s.c.id]) delete closed[s.c.id];
   saveVotes(); show();
 }

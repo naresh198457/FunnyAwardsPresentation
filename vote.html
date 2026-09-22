@@ -37,7 +37,7 @@ function msg(t) { app.innerHTML = `<div class="msg">${t}</div>`; }
 function render(note) {
   if (!state) return msg('Connecting to the presenter…');
   document.getElementById('ev').textContent = state.event || 'Funny Awards';
-  if (!state.catId) return msg(state.ended ? '🎉 Thanks for voting!<br>Winners are on the big screen.' : '⏳ Waiting for the next category…<br><small>This page updates by itself.</small>');
+  if (!state.catId) return msg(state.revealing ? '🎭 The nominees are being revealed on screen…<br><small>Get ready to vote!</small>' : '⏳ Waiting for the next category…<br><small>This page updates by itself.</small>');
   const my = mine(state.catId);
   app.innerHTML = `<h2>${esc(state.title)}</h2>` +
     state.candidates.map(c => `<button class="opt ${my === c.id ? 'on' : ''}" data-id="${c.id}" ${state.open ? '' : 'disabled'}><b>${esc(c.name)}</b><i>${esc(c.caption)}</i></button>`).join('') +

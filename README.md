@@ -10,7 +10,8 @@ A no-code presentation tool for club events: build award categories (photos, nam
 4. Check the previews on the right.
 5. **💾 Save deck** downloads a backup file; **📂 Open deck** restores it (also handy for moving to another computer).
 6. **▶ Start presentation**. Controls: `→`/`Space`/`PageDown` next, `←` back, `C` close/reopen voting, `Esc`/Exit to leave. Move the mouse to show the buttons.
-   - Voting slide: guests scan the QR code.
+   - Nominees for each category are revealed one by one as you press Next (phones just see "get ready").
+   - Voting slide: everyone is shown together and guests scan the QR code.
    - Next slide: live bars. Press **Close voting** to reveal the winner with a gold 🏆.
 
 **Before the event:** open the voting link (Event settings → Voting link) on your own phone and vote to test it. Then **Reset votes**.
