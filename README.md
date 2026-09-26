@@ -5,11 +5,12 @@ A no-code presentation tool for club events: build award categories (photos, nam
 ## Using it (no coding needed)
 
 1. Open the published site (see below) on the laptop connected to the projector. Use Chrome or Edge.
-2. **Event settings**: set the presentation title and voting instructions.
+2. **Event settings**: set the presentation title, optionally a club/event logo, a date and a subtitle (e.g. venue) for the opening slide, and the voting instructions.
 3. **＋ Add category**: type the category title, click each photo box to upload a picture, and type a name and funny comment.
 4. Check the previews on the right.
 5. **💾 Save deck** downloads a backup file; **📂 Open deck** restores it (also handy for moving to another computer).
 6. **▶ Start presentation**. Controls: `→`/`Space`/`PageDown` next, `←` back, `C` close/reopen voting, `Esc`/Exit to leave. Move the mouse to show the buttons.
+   - Opens on a title slide listing tonight's categories.
    - Nominees for each category are revealed one by one as you press Next (phones just see "get ready").
    - Voting slide: everyone is shown together and guests scan the QR code.
    - Next slide: live bars. Press **Close voting** to reveal the winner with a gold 🏆.

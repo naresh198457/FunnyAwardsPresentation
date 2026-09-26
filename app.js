@@ -14,13 +14,22 @@ function posOf(x) {
   return H > boxH ? `50% ${at(fy, H, boxH).toFixed(1)}%` : `${at(fx, Wd, W).toFixed(1)}% 50%`;
 }
 const imgTag = x => `<img src="${x.img || PLACEHOLDER}" style="object-position:${x.img ? posOf(x) : '50% 50%'}">`;
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return isNaN(d) ? iso : d.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+}
 
 /* ---------------- data ---------------- */
 const newCand = (name = '', caption = '') => ({ id: uid(), name, caption, img: '' });
-const newCat = title => ({ id: uid(), title, candidates: [newCand('Person 1', '"Funny comment"'), newCand('Person 2', '"Another funny comment"')] });
+const newCat = title => ({ id: uid(), title, showPhotos: true, candidates: [newCand('Person 1', '"Funny comment"'), newCand('Person 2', '"Another funny comment"')] });
+const showsPhotos = c => c.showPhotos !== false;
 
 let deck = load('fa_deck', null) || {
   title: 'Funny Awards Ceremony',
+  subtitle: '',
+  date: '',
+  logo: '',
   instructions: 'Please scan the QR code above with your smartphone to cast your vote now! The winner of this prestigious award will be announced at the end of the evening.',
   categories: [newCat('Best Excuse for Missing a Match')]
 };
@@ -80,8 +89,8 @@ function startHost() {
 const cur = () => screens()[idx];
 function stateMsg() {
   const s = presenting && cur();
-  const c = s && s.t !== 'reveal' && s.c;
-  if (!c) return { type: 'state', event: deck.title, catId: null, revealing: !!(s && s.t === 'reveal') };
+  const c = s && s.t !== 'reveal' && s.t !== 'home' && s.c;
+  if (!c) return { type: 'state', event: deck.title, catId: null, revealing: !!(s && s.t === 'reveal'), home: !!(s && s.t === 'home') };
   return {
     type: 'state', event: deck.title.slice(0, 80), catId: c.id, title: c.title.slice(0, 120), open: !closed[c.id],
     candidates: c.candidates.map(x => ({ id: x.id, name: x.name.slice(0, 60), caption: x.caption.slice(0, 100) }))
@@ -97,7 +106,9 @@ function broadcast() {
   }, 300);
 }
 function updCount() {
-  const s = presenting && cur(), n = s && s.c && s.t !== 'reveal' ? Object.keys(votes[s.c.id] || {}).length : 0;
+  const s = presenting && cur();
+  if (!s || !s.c || (s.t !== 'vote' && s.t !== 'results')) { $('#cVoters').textContent = ''; return; }
+  const n = Object.keys(votes[s.c.id] || {}).length;
   $('#cVoters').textContent = '🗳 ' + n + ' vote' + (n === 1 ? '' : 's') + ' this category';
 }
 
@@ -120,7 +131,7 @@ function qrSVG(text) {
 }
 
 function screens() {
-  const s = [];
+  const s = [{ t: 'home' }];
   deck.categories.forEach(c => {
     for (let n = 1; n < c.candidates.length; n++) s.push({ t: 'reveal', c, n });
     s.push({ t: 'vote', c }); s.push({ t: 'results', c });
@@ -136,27 +147,39 @@ function tally(c, demo) {
   return { counts, total: list.reduce((a, b) => a + b, 0), max: Math.max(0, ...list) };
 }
 
+const personCard = (x, withImg) => `<div class="card${withImg ? '' : ' noimg'}">${withImg ? imgTag(x) : ''}<div class="nm">${esc(x.name)}</div><div class="cp">${esc(x.caption)}</div></div>`;
+const resultRow = (x, withImg) => `<div class="rrow${withImg ? '' : ' noimg'}" data-id="${x.id}">${withImg ? imgTag(x) : ''}<div class="rn"><b>${esc(x.name)}</b><i>${esc(x.caption)}</i></div><div class="bar"><span></span></div><div class="ct"></div></div>`;
+
 function slideHTML(s, demo) {
   const head = `<h1>${esc(deck.title)}</h1>`;
+  if (s.t === 'home') {
+    const n = deck.categories.length, fs = n <= 5 ? 24 : n <= 8 ? 19 : 16;
+    const meta = [fmtDate(deck.date), deck.subtitle].filter(Boolean).join(' · ');
+    return `<div class="home-head">${deck.logo ? `<img class="home-logo" src="${deck.logo}">` : ''}
+      <div><h1>${esc(deck.title)}</h1>${meta ? `<div class="home-sub">${esc(meta)}</div>` : ''}</div></div>
+      <div class="agenda-label">Tonight's awards</div>
+      <div class="agenda-list ${n > 5 ? 'cols2' : ''}" style="font-size:${fs}px">${deck.categories.map((c, i) =>
+      `<div class="agenda-item"><span class="num">${i + 1}</span>${esc(c.title) || '(untitled)'}</div>`).join('')}</div>`;
+  }
   if (s.t === 'reveal') {
-    const c = s.c;
+    const c = s.c, withImg = showsPhotos(c);
     return head + `<h2>${esc(c.title)}</h2>
       <div class="cards">${c.candidates.map((x, i) => i < s.n
-      ? `<div class="card">${imgTag(x)}<div class="nm">${esc(x.name)}</div><div class="cp">${esc(x.caption)}</div></div>`
+      ? personCard(x, withImg)
       : `<div class="card mystery"><div class="mybox">?</div><div class="nm">?</div></div>`).join('')}</div>
       <p class="ins reveal-note">Nominee ${s.n} of ${c.candidates.length}…</p>`;
   }
   if (s.t === 'vote') {
-    const c = s.c;
+    const c = s.c, withImg = showsPhotos(c);
     return head + `<h2>${esc(c.title)}${closed[c.id] && !demo ? '<span class="closed-tag">Voting closed</span>' : ''}</h2>
-      <div class="cards">${c.candidates.map(x => `<div class="card">${imgTag(x)}<div class="nm">${esc(x.name)}</div><div class="cp">${esc(x.caption)}</div></div>`).join('')}</div>
+      <div class="cards">${c.candidates.map(x => personCard(x, withImg)).join('')}</div>
       <div class="foot vfoot"><p class="ins"><b>Instructions:</b><br>${esc(deck.instructions)}</p>
       <div class="qrcell"><div class="qrbox">${qrSVG(voteURL())}</div><b>SCAN TO VOTE</b></div></div>`;
   }
   if (s.t === 'results') {
-    const c = s.c;
+    const c = s.c, withImg = showsPhotos(c);
     return head + `<h2>${esc(c.title)} – Live results</h2>
-      <div class="res">${c.candidates.map(x => `<div class="rrow" data-id="${x.id}">${imgTag(x)}<div class="rn"><b>${esc(x.name)}</b><i>${esc(x.caption)}</i></div><div class="bar"><span></span></div><div class="ct"></div></div>`).join('')}</div>
+      <div class="res">${c.candidates.map(x => resultRow(x, withImg)).join('')}</div>
       <div class="foot"><span class="total"></span>${!demo && closed[c.id] ? '<span>🔒 Voting closed</span>' : `<span class="mini">Still time to vote <span class="qrbox">${qrSVG(voteURL())}</span></span>`}</div>`;
   }
 }
@@ -207,10 +230,18 @@ function renderForm() {
     sel = 'settings';
     f.innerHTML = `<h2>Event settings</h2>
       <label class="f">Presentation title (shown on every slide)</label><input type="text" data-k="title" value="${esc(deck.title)}">
+      <label class="f">Club or event logo (optional, shown on the opening slide)</label>
+      <div class="logorow">
+        <div class="pic logo-pic">${deck.logo ? `<img src="${deck.logo}">` : `<img src="${PLACEHOLDER}">`}</div>
+        <div><label class="btn">${deck.logo ? 'Change logo' : 'Add logo'}<input type="file" accept="image/*" hidden data-k="logo"></label>
+        ${deck.logo ? '<button class="btn danger" data-act="rmlogo">Remove</button>' : ''}</div>
+      </div>
+      <label class="f">Event date (optional, shown on the opening slide)</label><input type="date" data-k="date" value="${esc(deck.date)}">
+      <label class="f">Opening slide subtitle (optional – e.g. a venue)</label><input type="text" data-k="subtitle" value="${esc(deck.subtitle)}" placeholder="e.g. Poplars CC Club House">
       <label class="f">Voting instructions (shown on the voting slide)</label><textarea data-k="instructions">${esc(deck.instructions)}</textarea>
       <div class="help"><b>How it works</b><ol>
         <li>Add a category on the left for each award, then add people, photos and funny comments.</li>
-        <li>Click <b>▶ Start presentation</b>. Each category reveals its nominees <b>one by one</b>, then shows the <b>voting slide</b> with everyone and a QR code, then a <b>live results slide</b>.</li>
+        <li>Click <b>▶ Start presentation</b>. It opens on a <b>title slide</b> listing tonight's categories, then reveals each category's nominees <b>one by one</b>, then shows the <b>voting slide</b> with everyone and a QR code, then a <b>live results slide</b>.</li>
         <li>Guests scan the QR code with their phone camera and tap their pick. Bars move live on the results slide.</li>
         <li>Press <b>Close voting</b> on the results slide to reveal the winner.</li></ol></div>
       <label class="f">Published website address (your GitHub Pages link, e.g. https://yourname.github.io/funny-awards/)</label><input type="text" data-k="site" value="${esc(localStorage.getItem('fa_site') || '')}" placeholder="https://yourname.github.io/funny-awards/">
@@ -228,6 +259,7 @@ function renderForm() {
       <button class="btn" data-act="dup">⧉ Duplicate</button>
       <button class="btn danger" data-act="del">🗑 Delete</button></div>
     <label class="f">Category title</label><input type="text" data-k="ctitle" value="${esc(c.title)}" placeholder="e.g. Best Excuse for Missing a Match">
+    <label class="f chk"><input type="checkbox" data-k="showPhotos" ${showsPhotos(c) ? 'checked' : ''}> Show photos on the slides for this category</label>
     <label class="f">People (up to ${MAX_CANDS}) – click a photo to change it</label>
     <div class="cands">${c.candidates.map((x, j) => `<div class="cand" data-j="${j}">
       <div class="pic ${x.img ? 'has' : ''}" data-act="focus">${x.img ? `<img src="${x.img}" draggable="false"><i class="mk" style="left:${(x.fx ?? 0.5) * 100}%;top:${(x.fy ?? 0.35) * 100}%"></i>` : `<img src="${PLACEHOLDER}">`}</div>
@@ -240,6 +272,7 @@ function renderForm() {
 }
 
 function renderPreview() {
+  mountStage($('#pv0'), { t: 'home' }, true);
   const c = selCat() || deck.categories[0];
   if (!c) { $('#pv1').innerHTML = $('#pv2').innerHTML = ''; return; }
   mountStage($('#pv1'), { t: 'vote', c }, true);
@@ -276,20 +309,47 @@ function processImage(file) {
   });
 }
 
+/* shrink a logo, keeping transparency, without cropping it */
+function processLogo(file) {
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onerror = rej;
+    fr.onload = () => {
+      const im = new Image();
+      im.onerror = rej;
+      im.onload = () => {
+        const k = Math.min(1, 300 / Math.max(im.width, im.height)), cv = document.createElement('canvas');
+        cv.width = Math.round(im.width * k); cv.height = Math.round(im.height * k);
+        cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+        res(cv.toDataURL('image/png'));
+      };
+      im.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
 $('#form').addEventListener('input', e => {
   const k = e.target.dataset.k; if (!k || e.target.type === 'file') return;
   if (k === 'site') { localStorage.setItem('fa_site', e.target.value); $('#vlink').value = voteURL(); renderPreview(); return; }
-  if (k === 'title' || k === 'instructions') deck[k] = e.target.value;
+  if (k === 'title' || k === 'subtitle' || k === 'date' || k === 'instructions') deck[k] = e.target.value;
   else {
     const c = selCat(); if (!c) return;
     if (k === 'ctitle') { c.title = e.target.value; renderSide(); }
+    else if (k === 'showPhotos') c.showPhotos = e.target.checked;
     else c.candidates[+e.target.closest('.cand').dataset.j][k] = e.target.value;
   }
   save(); renderPreview();
 });
 
 $('#form').addEventListener('change', async e => {
-  if (e.target.dataset.k !== 'img' || !e.target.files[0]) return;
+  if (!e.target.files || !e.target.files[0]) return;
+  if (e.target.dataset.k === 'logo') {
+    try { deck.logo = await processLogo(e.target.files[0]); save(); renderForm(); renderPreview(); }
+    catch { toast('Could not read that image.'); }
+    return;
+  }
+  if (e.target.dataset.k !== 'img') return;
   const cand = selCat().candidates[+e.target.closest('.cand').dataset.j];
   try { Object.assign(cand, await processImage(e.target.files[0])); save(); renderForm(); renderPreview(); }
   catch { toast('Could not read that image.'); }
@@ -297,6 +357,7 @@ $('#form').addEventListener('change', async e => {
 
 $('#form').addEventListener('click', e => {
   if (e.target.id === 'copyLink') { navigator.clipboard?.writeText($('#vlink').value); toast('Link copied'); return; }
+  if (e.target.dataset.act === 'rmlogo') { deck.logo = ''; save(); renderForm(); renderPreview(); return; }
   const pic = e.target.closest('.pic.has');
   if (pic) {
     const r = pic.querySelector('img').getBoundingClientRect(), cand = selCat().candidates[+pic.closest('.cand').dataset.j];
@@ -365,7 +426,7 @@ function exitPresent() {
 function show() {
   const list = screens(), s = list[idx];
   mountStage($('#pbox'), s, false);
-  $('#cInfo').textContent = `Slide ${idx + 1} of ${list.length} · ${s.t === 'vote' ? 'Voting' : s.t === 'results' ? 'Live results' : `Revealing nominee ${s.n} of ${s.c.candidates.length}`}`;
+  $('#cInfo').textContent = `Slide ${idx + 1} of ${list.length} · ${s.t === 'home' ? 'Opening slide' : s.t === 'vote' ? 'Voting' : s.t === 'results' ? 'Live results' : `Revealing nominee ${s.n} of ${s.c.candidates.length}`}`;
   $('#cPrev').disabled = idx === 0; $('#cNext').disabled = idx === list.length - 1;
   $('#cClose').hidden = !s.c || s.t === 'reveal';
   if (s.c) $('#cClose').textContent = closed[s.c.id] ? '🔓 Re-open voting' : '🔒 Close voting';
