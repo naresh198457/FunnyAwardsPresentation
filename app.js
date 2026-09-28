@@ -21,13 +21,12 @@ function fmtDate(iso) {
 }
 
 /* ---------------- data ---------------- */
-const newCand = (name = '', caption = '') => ({ id: uid(), name, caption, img: '' });
+const newCand = (name = '', caption = '') => ({ id: uid(), name, caption, bio: '', img: '' });
 const newCat = title => ({ id: uid(), title, showPhotos: true, candidates: [newCand('Person 1', '"Funny comment"'), newCand('Person 2', '"Another funny comment"')] });
 const showsPhotos = c => c.showPhotos !== false;
 
 let deck = load('fa_deck', null) || {
   title: 'Funny Awards Ceremony',
-  subtitle: '',
   date: '',
   logo: '',
   instructions: 'Please scan the QR code above with your smartphone to cast your vote now! The winner of this prestigious award will be announced at the end of the evening.',
@@ -89,8 +88,8 @@ function startHost() {
 const cur = () => screens()[idx];
 function stateMsg() {
   const s = presenting && cur();
-  const c = s && s.t !== 'reveal' && s.t !== 'home' && s.c;
-  if (!c) return { type: 'state', event: deck.title, catId: null, revealing: !!(s && s.t === 'reveal'), home: !!(s && s.t === 'home') };
+  const c = s && s.t !== 'profile' && s.t !== 'home' && s.c;
+  if (!c) return { type: 'state', event: deck.title, catId: null, revealing: !!(s && s.t === 'profile'), home: !!(s && s.t === 'home') };
   return {
     type: 'state', event: deck.title.slice(0, 80), catId: c.id, title: c.title.slice(0, 120), open: !closed[c.id],
     candidates: c.candidates.map(x => ({ id: x.id, name: x.name.slice(0, 60), caption: x.caption.slice(0, 100) }))
@@ -115,7 +114,7 @@ function updCount() {
 function onMsg(m) {
   if (!m || m.type !== 'vote' || !presenting) return;
   const s = cur(), c = s && s.c;
-  if (!c || c.id !== m.catId || closed[c.id]) return;
+  if (!c || (s.t !== 'vote' && s.t !== 'results') || c.id !== m.catId || closed[c.id]) return;
   if (!c.candidates.some(x => x.id === m.candId) || typeof m.voter !== 'string') return;
   (votes[c.id] ||= {})[m.voter.slice(0, 40)] = m.candId;
   saveVotes(); updCount();
@@ -133,7 +132,7 @@ function qrSVG(text) {
 function screens() {
   const s = [{ t: 'home' }];
   deck.categories.forEach(c => {
-    for (let n = 1; n < c.candidates.length; n++) s.push({ t: 'reveal', c, n });
+    c.candidates.forEach((x, i) => s.push({ t: 'profile', c, x, i, total: c.candidates.length }));
     s.push({ t: 'vote', c }); s.push({ t: 'results', c });
   });
   return s;
@@ -152,33 +151,30 @@ const resultRow = (x, withImg) => `<div class="rrow${withImg ? '' : ' noimg'}" d
 
 function slideHTML(s, demo) {
   const head = `<h1>${esc(deck.title)}</h1>`;
+  const corner = s.t !== 'home' && deck.logo ? `<img class="corner-logo" src="${deck.logo}">` : '';
   if (s.t === 'home') {
-    const n = deck.categories.length, fs = n <= 5 ? 24 : n <= 8 ? 19 : 16;
-    const meta = [fmtDate(deck.date), deck.subtitle].filter(Boolean).join(' · ');
-    return `<div class="home-head">${deck.logo ? `<img class="home-logo" src="${deck.logo}">` : ''}
-      <div><h1>${esc(deck.title)}</h1>${meta ? `<div class="home-sub">${esc(meta)}</div>` : ''}</div></div>
-      <div class="agenda-label">Tonight's awards</div>
-      <div class="agenda-list ${n > 5 ? 'cols2' : ''}" style="font-size:${fs}px">${deck.categories.map((c, i) =>
-      `<div class="agenda-item"><span class="num">${i + 1}</span>${esc(c.title) || '(untitled)'}</div>`).join('')}</div>`;
+    return `<div class="home-center"><div class="home-head">${deck.logo ? `<img class="home-logo" src="${deck.logo}">` : ''}
+      <div><h1>${esc(deck.title)}</h1>${deck.date ? `<div class="home-sub">${esc(fmtDate(deck.date))}</div>` : ''}</div></div></div>`;
   }
-  if (s.t === 'reveal') {
-    const c = s.c, withImg = showsPhotos(c);
-    return head + `<h2>${esc(c.title)}</h2>
-      <div class="cards">${c.candidates.map((x, i) => i < s.n
-      ? personCard(x, withImg)
-      : `<div class="card mystery"><div class="mybox">?</div><div class="nm">?</div></div>`).join('')}</div>
-      <p class="ins reveal-note">Nominee ${s.n} of ${c.candidates.length}…</p>`;
+  if (s.t === 'profile') {
+    const c = s.c, x = s.x, withImg = showsPhotos(c);
+    return corner + head + `<h2>${esc(c.title)}</h2>
+      <div class="profile${withImg ? '' : ' noimg'}">
+        ${withImg ? `<div class="profile-photo">${imgTag(x)}</div>` : ''}
+        <div class="profile-info"><div class="profile-name">${esc(x.name) || '(unnamed)'}</div><div class="profile-desc">${esc(x.bio || x.caption)}</div></div>
+      </div>
+      <p class="ins reveal-note">Nominee ${s.i + 1} of ${s.total}</p>`;
   }
   if (s.t === 'vote') {
     const c = s.c, withImg = showsPhotos(c);
-    return head + `<h2>${esc(c.title)}${closed[c.id] && !demo ? '<span class="closed-tag">Voting closed</span>' : ''}</h2>
+    return corner + head + `<h2>${esc(c.title)}${closed[c.id] && !demo ? '<span class="closed-tag">Voting closed</span>' : ''}</h2>
       <div class="cards">${c.candidates.map(x => personCard(x, withImg)).join('')}</div>
       <div class="foot vfoot"><p class="ins"><b>Instructions:</b><br>${esc(deck.instructions)}</p>
       <div class="qrcell"><div class="qrbox">${qrSVG(voteURL())}</div><b>SCAN TO VOTE</b></div></div>`;
   }
   if (s.t === 'results') {
     const c = s.c, withImg = showsPhotos(c);
-    return head + `<h2>${esc(c.title)} – Live results</h2>
+    return corner + head + `<h2>${esc(c.title)} – Live results</h2>
       <div class="res">${c.candidates.map(x => resultRow(x, withImg)).join('')}</div>
       <div class="foot"><span class="total"></span>${!demo && closed[c.id] ? '<span>🔒 Voting closed</span>' : `<span class="mini">Still time to vote <span class="qrbox">${qrSVG(voteURL())}</span></span>`}</div>`;
   }
@@ -237,11 +233,10 @@ function renderForm() {
         ${deck.logo ? '<button class="btn danger" data-act="rmlogo">Remove</button>' : ''}</div>
       </div>
       <label class="f">Event date (optional, shown on the opening slide)</label><input type="date" data-k="date" value="${esc(deck.date)}">
-      <label class="f">Opening slide subtitle (optional – e.g. a venue)</label><input type="text" data-k="subtitle" value="${esc(deck.subtitle)}" placeholder="e.g. Poplars CC Club House">
       <label class="f">Voting instructions (shown on the voting slide)</label><textarea data-k="instructions">${esc(deck.instructions)}</textarea>
       <div class="help"><b>How it works</b><ol>
-        <li>Add a category on the left for each award, then add people, photos and funny comments.</li>
-        <li>Click <b>▶ Start presentation</b>. It opens on a <b>title slide</b> listing tonight's categories, then reveals each category's nominees <b>one by one</b>, then shows the <b>voting slide</b> with everyone and a QR code, then a <b>live results slide</b>.</li>
+        <li>Add a category on the left for each award, then add people, photos, a short comment and (optionally) a fuller description for each.</li>
+        <li>Click <b>▶ Start presentation</b>. It opens on a <b>title slide</b> (title, logo, date). Then, for each category: every nominee gets their own <b>full slide</b> with a big photo and their full description, then a <b>voting slide</b> with everyone together and a QR code, then a <b>live results slide</b>. This repeats for each category.</li>
         <li>Guests scan the QR code with their phone camera and tap their pick. Bars move live on the results slide.</li>
         <li>Press <b>Close voting</b> on the results slide to reveal the winner.</li></ol></div>
       <label class="f">Published website address (your GitHub Pages link, e.g. https://yourname.github.io/funny-awards/)</label><input type="text" data-k="site" value="${esc(localStorage.getItem('fa_site') || '')}" placeholder="https://yourname.github.io/funny-awards/">
@@ -266,7 +261,8 @@ function renderForm() {
       ${x.img ? '<div class="muted">👆 Click the face to centre it</div>' : ''}
       <label class="btn">${x.img ? 'Change photo' : 'Add photo'}<input type="file" accept="image/*" hidden data-k="img"></label>
       <input type="text" data-k="name" placeholder="Name" value="${esc(x.name)}">
-      <input type="text" data-k="caption" placeholder='Funny comment' value="${esc(x.caption)}">
+      <input type="text" data-k="caption" placeholder='Short comment (used on the group slides)' value="${esc(x.caption)}">
+      <textarea data-k="bio" placeholder="Full description for this person's own slide (optional – falls back to the short comment)" rows="3">${esc(x.bio)}</textarea>
       <button class="btn danger" data-act="rmc" ${c.candidates.length <= 2 ? 'disabled' : ''}>Remove</button></div>`).join('')}</div>
     <button class="btn wide" data-act="addc" ${c.candidates.length >= MAX_CANDS ? 'disabled' : ''}>＋ Add person</button>`;
 }
@@ -274,7 +270,8 @@ function renderForm() {
 function renderPreview() {
   mountStage($('#pv0'), { t: 'home' }, true);
   const c = selCat() || deck.categories[0];
-  if (!c) { $('#pv1').innerHTML = $('#pv2').innerHTML = ''; return; }
+  if (!c) { $('#pv1').innerHTML = $('#pv2').innerHTML = $('#pv3').innerHTML = ''; return; }
+  mountStage($('#pv3'), { t: 'profile', c, x: c.candidates[0], i: 0, total: c.candidates.length }, true);
   mountStage($('#pv1'), { t: 'vote', c }, true);
   mountStage($('#pv2'), { t: 'results', c }, true);
 }
@@ -332,7 +329,7 @@ function processLogo(file) {
 $('#form').addEventListener('input', e => {
   const k = e.target.dataset.k; if (!k || e.target.type === 'file') return;
   if (k === 'site') { localStorage.setItem('fa_site', e.target.value); $('#vlink').value = voteURL(); renderPreview(); return; }
-  if (k === 'title' || k === 'subtitle' || k === 'date' || k === 'instructions') deck[k] = e.target.value;
+  if (k === 'title' || k === 'date' || k === 'instructions') deck[k] = e.target.value;
   else {
     const c = selCat(); if (!c) return;
     if (k === 'ctitle') { c.title = e.target.value; renderSide(); }
@@ -426,15 +423,15 @@ function exitPresent() {
 function show() {
   const list = screens(), s = list[idx];
   mountStage($('#pbox'), s, false);
-  $('#cInfo').textContent = `Slide ${idx + 1} of ${list.length} · ${s.t === 'home' ? 'Opening slide' : s.t === 'vote' ? 'Voting' : s.t === 'results' ? 'Live results' : `Revealing nominee ${s.n} of ${s.c.candidates.length}`}`;
+  $('#cInfo').textContent = `Slide ${idx + 1} of ${list.length} · ${s.t === 'home' ? 'Opening slide' : s.t === 'vote' ? 'Voting' : s.t === 'results' ? 'Live results' : `Nominee ${s.i + 1} of ${s.total} – ${s.x.name || '(unnamed)'}`}`;
   $('#cPrev').disabled = idx === 0; $('#cNext').disabled = idx === list.length - 1;
-  $('#cClose').hidden = !s.c || s.t === 'reveal';
+  $('#cClose').hidden = !s.c || s.t === 'profile';
   if (s.c) $('#cClose').textContent = closed[s.c.id] ? '🔓 Re-open voting' : '🔒 Close voting';
   updCount(); broadcast();
 }
 function go(d) { const n = idx + d; if (n >= 0 && n < screens().length) { idx = n; show(); } }
 function toggleClose() {
-  const s = cur(); if (!s.c || s.t === 'reveal') return;
+  const s = cur(); if (!s.c || s.t === 'profile') return;
   closed[s.c.id] = !closed[s.c.id]; if (!closed[s.c.id]) delete closed[s.c.id];
   saveVotes(); show();
 }

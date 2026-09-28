@@ -5,15 +5,15 @@ A no-code presentation tool for club events: build award categories (photos, nam
 ## Using it (no coding needed)
 
 1. Open the published site (see below) on the laptop connected to the projector. Use Chrome or Edge.
-2. **Event settings**: set the presentation title, optionally a club/event logo, a date and a subtitle (e.g. venue) for the opening slide, and the voting instructions.
-3. **＋ Add category**: type the category title, click each photo box to upload a picture, and type a name and funny comment.
+2. **Event settings**: set the presentation title, optionally a club/event logo and a date for the opening slide, and the voting instructions.
+3. **＋ Add category**: type the category title, click each photo box to upload a picture, and for each person type a short comment (used on the group slides) and, optionally, a fuller description for their own slide.
 4. Check the previews on the right.
 5. **💾 Save deck** downloads a backup file; **📂 Open deck** restores it (also handy for moving to another computer).
 6. **▶ Start presentation**. Controls: `→`/`Space`/`PageDown` next, `←` back, `C` close/reopen voting, `Esc`/Exit to leave. Move the mouse to show the buttons.
-   - Opens on a title slide listing tonight's categories.
-   - Nominees for each category are revealed one by one as you press Next (phones just see "get ready").
-   - Voting slide: everyone is shown together and guests scan the QR code.
-   - Next slide: live bars. Press **Close voting** to reveal the winner with a gold 🏆.
+   - Opens on a **title slide**: presentation title, logo and date, nothing else.
+   - From there on, your logo (if you added one) stays in the top-right corner of every slide.
+   - For each category: every nominee gets their own **full slide** (big photo + full description), then a **voting slide** with everyone together and the QR code, then a **live results slide**. This repeats for each category.
+   - On the results slide, press **Close voting** to reveal the winner with a gold 🏆.
 
 **Before the event:** open the voting link (Event settings → Voting link) on your own phone and vote to test it. Then **Reset votes**.
 **During the event:** keep the presenter tab open (votes are kept even if you refresh).
