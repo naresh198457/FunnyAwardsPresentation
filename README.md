@@ -12,7 +12,7 @@ A no-code presentation tool for club events: build award categories (photos, nam
 6. **▶ Start presentation**. Controls: `→`/`Space`/`PageDown` next, `←` back, `C` close/reopen voting, `Esc`/Exit to leave. Move the mouse to show the buttons.
    - Opens on a **title slide**: presentation title, logo and date, nothing else.
    - From there on, your logo (if you added one) stays in the top-right corner of every slide.
-   - For each category: every nominee gets their own **full slide** (big photo + full description), then a **voting slide** with everyone together and the QR code, then a **live results slide**. This repeats for each category.
+   - For each category: a slide with just the **award name**, then every nominee gets their own **full slide** (big photo + full description), then a **voting slide** with everyone together and the QR code, then a **live results slide**. This repeats for each category.
    - On the results slide, press **Close voting** to reveal the winner with a gold 🏆.
 
 **Before the event:** open the voting link (Event settings → Voting link) on your own phone and vote to test it. Then **Reset votes**.
@@ -35,5 +35,3 @@ Votes travel over ordinary HTTPS through the free public relay ntfy.sh, so they 
 
 - `index.html`, `app.js`, `style.css`: editor, presenter and vote counter
 - `vote.html`: the page guests see on their phones
-
-the 

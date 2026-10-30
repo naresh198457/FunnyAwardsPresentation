@@ -104,6 +104,11 @@ button,input,textarea{font:inherit}
 .stage .home-logo{max-width:150px;max-height:150px;object-fit:contain;flex:none}
 .stage .home-sub{font-size:24px;color:#555;margin-top:8px}
 
+/* category name slide, shown before that category's nominees */
+.stage .catintro-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 90px}
+.stage .catintro-tag{font-size:20px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--green);margin-bottom:18px}
+.stage .catintro-title{font-size:58px;font-weight:800;color:var(--ink);line-height:1.15;margin:0}
+
 /* one nominee's own slide: big photo + full description */
 .stage .profile{display:flex;align-items:center;gap:40px;margin-top:10px}
 .stage .profile-photo{flex:0 0 560px}

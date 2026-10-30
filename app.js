@@ -88,8 +88,8 @@ function startHost() {
 const cur = () => screens()[idx];
 function stateMsg() {
   const s = presenting && cur();
-  const c = s && s.t !== 'profile' && s.t !== 'home' && s.c;
-  if (!c) return { type: 'state', event: deck.title, catId: null, revealing: !!(s && s.t === 'profile'), home: !!(s && s.t === 'home') };
+  const c = s && s.t !== 'profile' && s.t !== 'home' && s.t !== 'catintro' && s.c;
+  if (!c) return { type: 'state', event: deck.title, catId: null, revealing: !!(s && (s.t === 'profile' || s.t === 'catintro')), home: !!(s && s.t === 'home') };
   return {
     type: 'state', event: deck.title.slice(0, 80), catId: c.id, title: c.title.slice(0, 120), open: !closed[c.id],
     candidates: c.candidates.map(x => ({ id: x.id, name: x.name.slice(0, 60), caption: x.caption.slice(0, 100) }))
@@ -132,6 +132,7 @@ function qrSVG(text) {
 function screens() {
   const s = [{ t: 'home' }];
   deck.categories.forEach(c => {
+    s.push({ t: 'catintro', c });
     c.candidates.forEach((x, i) => s.push({ t: 'profile', c, x, i, total: c.candidates.length }));
     s.push({ t: 'vote', c }); s.push({ t: 'results', c });
   });
@@ -155,6 +156,10 @@ function slideHTML(s, demo) {
   if (s.t === 'home') {
     return `<div class="home-center"><div class="home-head">${deck.logo ? `<img class="home-logo" src="${deck.logo}">` : ''}
       <div><h1>${esc(deck.title)}</h1>${deck.date ? `<div class="home-sub">${esc(fmtDate(deck.date))}</div>` : ''}</div></div></div>`;
+  }
+  if (s.t === 'catintro') {
+    const c = s.c;
+    return corner + `<div class="catintro-center"><div class="catintro-tag">${esc(deck.title)}</div><h1 class="catintro-title">${esc(c.title) || '(untitled category)'}</h1></div>`;
   }
   if (s.t === 'profile') {
     const c = s.c, x = s.x, withImg = showsPhotos(c);
@@ -236,7 +241,7 @@ function renderForm() {
       <label class="f">Voting instructions (shown on the voting slide)</label><textarea data-k="instructions">${esc(deck.instructions)}</textarea>
       <div class="help"><b>How it works</b><ol>
         <li>Add a category on the left for each award, then add people, photos, a short comment and (optionally) a fuller description for each.</li>
-        <li>Click <b>▶ Start presentation</b>. It opens on a <b>title slide</b> (title, logo, date). Then, for each category: every nominee gets their own <b>full slide</b> with a big photo and their full description, then a <b>voting slide</b> with everyone together and a QR code, then a <b>live results slide</b>. This repeats for each category.</li>
+        <li>Click <b>▶ Start presentation</b>. It opens on a <b>title slide</b> (title, logo, date). Then, for each category: a slide with just the <b>award name</b>, then every nominee gets their own <b>full slide</b> with a big photo and their full description, then a <b>voting slide</b> with everyone together and a QR code, then a <b>live results slide</b>. This repeats for each category.</li>
         <li>Guests scan the QR code with their phone camera and tap their pick. Bars move live on the results slide.</li>
         <li>Press <b>Close voting</b> on the results slide to reveal the winner.</li></ol></div>
       <label class="f">Published website address (your GitHub Pages link, e.g. https://yourname.github.io/funny-awards/)</label><input type="text" data-k="site" value="${esc(localStorage.getItem('fa_site') || '')}" placeholder="https://yourname.github.io/funny-awards/">
@@ -270,7 +275,8 @@ function renderForm() {
 function renderPreview() {
   mountStage($('#pv0'), { t: 'home' }, true);
   const c = selCat() || deck.categories[0];
-  if (!c) { $('#pv1').innerHTML = $('#pv2').innerHTML = $('#pv3').innerHTML = ''; return; }
+  if (!c) { $('#pv1').innerHTML = $('#pv2').innerHTML = $('#pv3').innerHTML = $('#pv4').innerHTML = ''; return; }
+  mountStage($('#pv4'), { t: 'catintro', c }, true);
   mountStage($('#pv3'), { t: 'profile', c, x: c.candidates[0], i: 0, total: c.candidates.length }, true);
   mountStage($('#pv1'), { t: 'vote', c }, true);
   mountStage($('#pv2'), { t: 'results', c }, true);
@@ -423,15 +429,15 @@ function exitPresent() {
 function show() {
   const list = screens(), s = list[idx];
   mountStage($('#pbox'), s, false);
-  $('#cInfo').textContent = `Slide ${idx + 1} of ${list.length} · ${s.t === 'home' ? 'Opening slide' : s.t === 'vote' ? 'Voting' : s.t === 'results' ? 'Live results' : `Nominee ${s.i + 1} of ${s.total} – ${s.x.name || '(unnamed)'}`}`;
+  $('#cInfo').textContent = `Slide ${idx + 1} of ${list.length} · ${s.t === 'home' ? 'Opening slide' : s.t === 'catintro' ? `Category: ${s.c.title}` : s.t === 'vote' ? 'Voting' : s.t === 'results' ? 'Live results' : `Nominee ${s.i + 1} of ${s.total} – ${s.x.name || '(unnamed)'}`}`;
   $('#cPrev').disabled = idx === 0; $('#cNext').disabled = idx === list.length - 1;
-  $('#cClose').hidden = !s.c || s.t === 'profile';
+  $('#cClose').hidden = !s.c || s.t === 'profile' || s.t === 'catintro';
   if (s.c) $('#cClose').textContent = closed[s.c.id] ? '🔓 Re-open voting' : '🔒 Close voting';
   updCount(); broadcast();
 }
 function go(d) { const n = idx + d; if (n >= 0 && n < screens().length) { idx = n; show(); } }
 function toggleClose() {
-  const s = cur(); if (!s.c || s.t === 'profile') return;
+  const s = cur(); if (!s.c || s.t === 'profile' || s.t === 'catintro') return;
   closed[s.c.id] = !closed[s.c.id]; if (!closed[s.c.id]) delete closed[s.c.id];
   saveVotes(); show();
 }
