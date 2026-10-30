@@ -161,7 +161,7 @@ function slideHTML(s, demo) {
     return corner + head + `<h2>${esc(c.title)}</h2>
       <div class="profile${withImg ? '' : ' noimg'}">
         ${withImg ? `<div class="profile-photo">${imgTag(x)}</div>` : ''}
-        <div class="profile-info"><div class="profile-name">${esc(x.name) || '(unnamed)'}</div><div class="profile-desc">${esc(x.bio || x.caption)}</div></div>
+        <div class="profile-info"><div class="profile-name">${esc(x.name) || '(unnamed)'}</div>${x.caption ? `<div class="profile-caption">${esc(x.caption)}</div>` : ''}${x.bio ? `<div class="profile-desc">${esc(x.bio)}</div>` : ''}</div>
       </div>
       <p class="ins reveal-note">Nominee ${s.i + 1} of ${s.total}</p>`;
   }

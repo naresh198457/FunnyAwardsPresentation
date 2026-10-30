@@ -109,9 +109,11 @@ button,input,textarea{font:inherit}
 .stage .profile-photo{flex:0 0 560px}
 .stage .profile-photo img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:16px;background:#e5e5ea;box-shadow:0 2px 14px rgba(0,0,0,.08)}
 .stage .profile-info{flex:1;min-width:0}
-.stage .profile-name{font-size:44px;font-weight:800;color:#8b1a1a;margin-bottom:18px}
-.stage .profile-desc{font-size:26px;font-style:italic;line-height:1.4;color:#333;overflow-wrap:anywhere}
+.stage .profile-name{font-size:44px;font-weight:800;color:#8b1a1a;margin-bottom:12px}
+.stage .profile-caption{font-size:24px;font-weight:700;line-height:1.35;color:var(--ink);overflow-wrap:anywhere}
+.stage .profile-desc{font-size:22px;font-style:italic;line-height:1.4;color:#333;margin-top:14px;overflow-wrap:anywhere}
 .stage .profile.noimg{justify-content:center;text-align:center}
 .stage .profile.noimg .profile-info{max-width:920px}
 .stage .profile.noimg .profile-name{font-size:52px}
-.stage .profile.noimg .profile-desc{font-size:30px}
+.stage .profile.noimg .profile-caption{font-size:28px}
+.stage .profile.noimg .profile-desc{font-size:26px}
