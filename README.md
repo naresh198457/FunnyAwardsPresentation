@@ -35,3 +35,5 @@ Votes travel over ordinary HTTPS through the free public relay ntfy.sh, so they 
 
 - `index.html`, `app.js`, `style.css`: editor, presenter and vote counter
 - `vote.html`: the page guests see on their phones
+
+the 
