@@ -161,9 +161,6 @@ function slideHTML(s, demo) {
     return `<div class="home-center"><div class="home-head">${deck.logo ? `<img class="home-logo" src="${deck.logo}">` : ''}
       <div><h1>${esc(deck.title)}</h1>${deck.date ? `<div class="home-sub">${esc(fmtDate(deck.date))}</div>` : ''}</div></div></div>`;
   }
-  if (s.t === 'video') {
-    return `<div class="video-wrap"><video src="${esc(s.src)}" controls playsinline preload="auto"></video></div>`;
-  }
   if (s.t === 'catintro') {
     const c = s.c;
     return corner + `<div class="catintro-center"><div class="catintro-tag">${esc(deck.title)}</div><h1 class="catintro-title">${esc(c.title) || '(untitled category)'}</h1></div>`;
@@ -206,6 +203,15 @@ function paintResults(root, c, demo) {
 
 /* Scale a 1280x720 stage into its box */
 function mountStage(box, s, demo) {
+  if (s.t === 'video') {
+    // videos fill the screen directly – not inside the scaled 1280x720 stage – so the browser plays them at full quality and speed
+    if (box._ro) { box._ro.disconnect(); box._ro = null; }
+    box.innerHTML = `<div class="video-full"><video src="${esc(s.src)}" controls playsinline preload="auto"></video></div>`;
+    const v = box.querySelector('video');
+    // autoplay with sound (the click/keypress that got us here allows it); if the browser refuses, the controls stay for a manual play
+    if (v && !demo) v.play().catch(() => { });
+    return;
+  }
   box.innerHTML = `<div class="stage">${slideHTML(s, demo)}</div>`;
   const st = box.firstElementChild;
   const fit = () => {
@@ -218,11 +224,6 @@ function mountStage(box, s, demo) {
   if (box._ro) box._ro.disconnect();
   box._ro = new ResizeObserver(fit); box._ro.observe(box);
   if (s.t === 'results') requestAnimationFrame(() => requestAnimationFrame(() => paintResults(box, s.c, demo)));
-  if (s.t === 'video') {
-    const v = box.querySelector('video');
-    // autoplay with sound (the click/keypress that got us here allows it); if the browser refuses, the controls stay for a manual play
-    if (v && !demo) v.play().catch(() => { });
-  }
 }
 
 /* ---------------- editor ---------------- */
