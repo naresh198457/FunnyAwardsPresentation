@@ -88,8 +88,8 @@ function startHost() {
 const cur = () => screens()[idx];
 function stateMsg() {
   const s = presenting && cur();
-  const c = s && s.t !== 'profile' && s.t !== 'home' && s.t !== 'catintro' && s.c;
-  if (!c) return { type: 'state', event: deck.title, catId: null, revealing: !!(s && (s.t === 'profile' || s.t === 'catintro')), home: !!(s && s.t === 'home') };
+  const c = s && s.t !== 'profile' && s.t !== 'home' && s.t !== 'catintro' && s.t !== 'video' && s.c;
+  if (!c) return { type: 'state', event: deck.title, catId: null, revealing: !!(s && (s.t === 'profile' || s.t === 'catintro' || s.t === 'video')), home: !!(s && s.t === 'home') };
   return {
     type: 'state', event: deck.title.slice(0, 80), catId: c.id, title: c.title.slice(0, 120), open: !closed[c.id],
     candidates: c.candidates.map(x => ({ id: x.id, name: x.name.slice(0, 60), caption: x.caption.slice(0, 100) }))
@@ -129,9 +129,13 @@ function qrSVG(text) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-2 -2 ${n + 4} ${n + 4}" shape-rendering="crispEdges"><rect x="-2" y="-2" width="${n + 4}" height="${n + 4}" fill="#fff"/><path d="${d}"/></svg>`;
 }
 
+// videos played, in order, before a category: c.videos (array) – c.video (single) is still accepted
+const videosOf = c => (Array.isArray(c.videos) ? c.videos : c.video ? [c.video] : []).map(v => String(v).trim()).filter(Boolean);
+
 function screens() {
   const s = [{ t: 'home' }];
   deck.categories.forEach(c => {
+    videosOf(c).forEach((src, k) => s.push({ t: 'video', c, src, k }));
     s.push({ t: 'catintro', c });
     c.candidates.forEach((x, i) => s.push({ t: 'profile', c, x, i, total: c.candidates.length }));
     s.push({ t: 'vote', c }); s.push({ t: 'results', c });
@@ -156,6 +160,9 @@ function slideHTML(s, demo) {
   if (s.t === 'home') {
     return `<div class="home-center"><div class="home-head">${deck.logo ? `<img class="home-logo" src="${deck.logo}">` : ''}
       <div><h1>${esc(deck.title)}</h1>${deck.date ? `<div class="home-sub">${esc(fmtDate(deck.date))}</div>` : ''}</div></div></div>`;
+  }
+  if (s.t === 'video') {
+    return `<div class="video-wrap"><video src="${esc(s.src)}" controls playsinline preload="auto"></video></div>`;
   }
   if (s.t === 'catintro') {
     const c = s.c;
@@ -211,6 +218,11 @@ function mountStage(box, s, demo) {
   if (box._ro) box._ro.disconnect();
   box._ro = new ResizeObserver(fit); box._ro.observe(box);
   if (s.t === 'results') requestAnimationFrame(() => requestAnimationFrame(() => paintResults(box, s.c, demo)));
+  if (s.t === 'video') {
+    const v = box.querySelector('video');
+    // autoplay with sound (the click/keypress that got us here allows it); if the browser refuses, the controls stay for a manual play
+    if (v && !demo) v.play().catch(() => { });
+  }
 }
 
 /* ---------------- editor ---------------- */
@@ -222,7 +234,7 @@ function renderAll() { renderSide(); renderForm(); renderPreview(); }
 function renderSide() {
   document.querySelectorAll('.side-item[data-sel="settings"]').forEach(b => b.classList.toggle('on', sel === 'settings'));
   $('#catList').innerHTML = deck.categories.map((c, i) =>
-    `<button class="side-item ${sel === c.id ? 'on' : ''}" data-sel="${c.id}">${i + 1}. ${esc(c.title) || '(untitled)'}</button>`).join('');
+    `<button class="side-item ${sel === c.id ? 'on' : ''}" data-sel="${c.id}">${i + 1}. ${esc(c.title) || '(untitled)'}${videosOf(c).length ? ' 🎬' : ''}</button>`).join('');
 }
 
 function renderForm() {
@@ -259,6 +271,8 @@ function renderForm() {
       <button class="btn" data-act="dup">⧉ Duplicate</button>
       <button class="btn danger" data-act="del">🗑 Delete</button></div>
     <label class="f">Category title</label><input type="text" data-k="ctitle" value="${esc(c.title)}" placeholder="e.g. Best Excuse for Missing a Match">
+    <label class="f">Videos to play before this category (optional) – one per line, in order. Use a file name in the site folder, e.g. jansen-catch.mp4, or a web link</label>
+    <textarea data-k="videos" rows="3" placeholder="jansen-catch.mp4">${esc(videosOf(c).join('\n'))}</textarea>
     <label class="f chk"><input type="checkbox" data-k="showPhotos" ${showsPhotos(c) ? 'checked' : ''}> Show photos on the slides for this category</label>
     <label class="f">People (up to ${MAX_CANDS}) – click a photo to change it</label>
     <div class="cands">${c.candidates.map((x, j) => `<div class="cand" data-j="${j}">
@@ -339,6 +353,7 @@ $('#form').addEventListener('input', e => {
   else {
     const c = selCat(); if (!c) return;
     if (k === 'ctitle') { c.title = e.target.value; renderSide(); }
+    else if (k === 'videos') { c.videos = e.target.value.split('\n').map(v => v.trim()).filter(Boolean); delete c.video; renderSide(); }
     else if (k === 'showPhotos') c.showPhotos = e.target.checked;
     else c.candidates[+e.target.closest('.cand').dataset.j][k] = e.target.value;
   }
@@ -422,22 +437,22 @@ function present() {
   show(); wakeCtrl();
 }
 function exitPresent() {
-  presenting = false; $('#present').hidden = true;
+  presenting = false; $('#present').hidden = true; $('#pbox').innerHTML = '';   // also stops any playing video
   if (document.fullscreenElement) document.exitFullscreen();
   broadcast(); renderPreview();
 }
 function show() {
   const list = screens(), s = list[idx];
   mountStage($('#pbox'), s, false);
-  $('#cInfo').textContent = `Slide ${idx + 1} of ${list.length} · ${s.t === 'home' ? 'Opening slide' : s.t === 'catintro' ? `Category: ${s.c.title}` : s.t === 'vote' ? 'Voting' : s.t === 'results' ? 'Live results' : `Nominee ${s.i + 1} of ${s.total} – ${s.x.name || '(unnamed)'}`}`;
+  $('#cInfo').textContent = `Slide ${idx + 1} of ${list.length} · ${s.t === 'home' ? 'Opening slide' : s.t === 'video' ? `Video ${s.k + 1} of ${videosOf(s.c).length}, before: ${s.c.title}` : s.t === 'catintro' ? `Category: ${s.c.title}` : s.t === 'vote' ? 'Voting' : s.t === 'results' ? 'Live results' : `Nominee ${s.i + 1} of ${s.total} – ${s.x.name || '(unnamed)'}`}`;
   $('#cPrev').disabled = idx === 0; $('#cNext').disabled = idx === list.length - 1;
-  $('#cClose').hidden = !s.c || s.t === 'profile' || s.t === 'catintro';
+  $('#cClose').hidden = !s.c || s.t === 'profile' || s.t === 'catintro' || s.t === 'video';
   if (s.c) $('#cClose').textContent = closed[s.c.id] ? '🔓 Re-open voting' : '🔒 Close voting';
   updCount(); broadcast();
 }
 function go(d) { const n = idx + d; if (n >= 0 && n < screens().length) { idx = n; show(); } }
 function toggleClose() {
-  const s = cur(); if (!s.c || s.t === 'profile' || s.t === 'catintro') return;
+  const s = cur(); if (!s.c || s.t === 'profile' || s.t === 'catintro' || s.t === 'video') return;
   closed[s.c.id] = !closed[s.c.id]; if (!closed[s.c.id]) delete closed[s.c.id];
   saveVotes(); show();
 }

@@ -13,6 +13,7 @@ A no-code presentation tool for club events: build award categories (photos, nam
    - Opens on a **title slide**: presentation title, logo and date, nothing else.
    - From there on, your logo (if you added one) stays in the top-right corner of every slide.
    - For each category: a slide with just the **award name**, then every nominee gets their own **full slide** (big photo + full description), then a **voting slide** with everyone together and the QR code, then a **live results slide**. This repeats for each category.
+   - **Videos (optional):** in a category's settings, list video file names (one per line) under "Videos to play before this category". Put the video files in the same folder as `index.html` (use `.mp4` so it plays everywhere). They play full-screen, in order, just before that category's name slide; press Next to continue.
    - On the results slide, press **Close voting** to reveal the winner with a gold 🏆.
 
 **Before the event:** open the voting link (Event settings → Voting link) on your own phone and vote to test it. Then **Reset votes**.

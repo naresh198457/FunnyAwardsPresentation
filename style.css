@@ -69,6 +69,8 @@ button,input,textarea{font:inherit}
 .stage .card.noimg{justify-content:center;padding:28px 18px}
 .stage .card.noimg .nm{margin-top:0;font-size:25px}
 .stage .card.noimg .cp{font-size:20px;margin-top:10px}
+.stage .video-wrap{position:absolute;inset:0;background:#000;display:flex;align-items:center;justify-content:center}
+.stage .video-wrap video{width:100%;height:100%;object-fit:contain;background:#000}
 .stage .qrbox svg{width:100%;height:100%;display:block}
 .stage .vfoot{align-items:flex-end;gap:30px;bottom:26px}
 .stage .ins{margin:0;font-size:17px;color:#444;line-height:1.4;max-width:940px}
